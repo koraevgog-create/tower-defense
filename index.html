@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tower Defense</title>
+<style>
+:root{--bg:#111827;--panel:#1f2937;--text:#f9fafb;--muted:#9ca3af;--accent:#f59e0b;--good:#22c55e}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#0b1220,#111827);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.wrap{width:min(1180px,96vw);display:grid;grid-template-columns:1fr 280px;gap:14px}.game-shell{background:#0b1220;padding:10px;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+canvas{width:100%;display:block;border-radius:12px;background:#234;cursor:crosshair}.panel{background:rgba(31,41,55,.96);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+h1{font-size:20px;margin:0 0 12px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.stat{background:#111827;border-radius:12px;padding:10px}.stat span{display:block;color:var(--muted);font-size:12px}.stat b{font-size:18px}
+.section-title{font-size:13px;color:#cbd5e1;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.08em}.tower-card{width:100%;border:1px solid rgba(255,255,255,.08);background:#111827;color:white;border-radius:12px;padding:10px;margin-bottom:8px;text-align:left;cursor:pointer;transition:.15s}
+.tower-card:hover{transform:translateY(-1px);border-color:#64748b}.tower-card.active{outline:2px solid var(--accent);background:#1b2434}.tower-card b{display:block}.tower-card small{color:var(--muted)}
+button.action{width:100%;border:0;border-radius:12px;padding:11px 12px;margin-top:8px;font-weight:700;cursor:pointer}#startWave{background:var(--good);color:#052e16}#pauseBtn{background:#334155;color:white}
+.hint{color:var(--muted);font-size:12px;line-height:1.45;margin-top:12px}.banner{margin-top:10px;padding:10px;border-radius:10px;background:#111827;font-size:13px;min-height:40px}@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="game-shell"><canvas id="game" width="900" height="560"></canvas></div>
+<aside class="panel">
+<h1>🛡️ Tower Defense</h1>
+<div class="stats">
+<div class="stat"><span>Деньги</span><b id="money">300</b></div>
+<div class="stat"><span>Жизни</span><b id="lives">20</b></div>
+<div class="stat"><span>Волна</span><b id="wave">0</b></div>
+<div class="stat"><span>Врагов</span><b id="enemies">0</b></div>
+</div>
+<div class="section-title">Башни</div>
+<button class="tower-card active" data-type="basic"><b>⚙️ Пулемётная — 100</b><small>Быстрая, средний урон</small></button>
+<button class="tower-card" data-type="sniper"><b>🎯 Снайперская — 180</b><small>Дальний радиус, высокий урон</small></button>
+<button class="tower-card" data-type="rapid"><b>⚡ Скоростная — 150</b><small>Очень быстрая, слабее выстрел</small></button>
+<button class="action" id="startWave">Запустить волну</button>
+<button class="action" id="pauseBtn">Пауза</button>
+<div class="banner" id="message">Выбери башню и поставь её рядом с дорогой.</div>
+<div class="hint">Клик по свободной клетке — установить башню.<br>Нельзя ставить башни на дороге.<br>Уничтожай врагов до того, как они дойдут до базы.</div>
+</aside>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const ui={money:moneyEl=document.getElementById('money'),lives:livesEl=document.getElementById('lives'),wave:waveEl=document.getElementById('wave'),enemies:enemiesEl=document.getElementById('enemies'),message:document.getElementById('message'),startWave:document.getElementById('startWave'),pauseBtn:document.getElementById('pauseBtn')};
+const TILE=40;let money=300,lives=20,wave=0,selectedTowerType='basic',towers=[],enemies=[],bullets=[],waveActive=false,paused=false,spawnQueue=[],spawnTimer=0,gameOver=false;
+const path=[{x:-20,y:100},{x:180,y:100},{x:180,y:260},{x:420,y:260},{x:420,y:140},{x:660,y:140},{x:660,y:380},{x:920,y:380}];
+const towerTypes={basic:{cost:100,range:135,damage:18,fireRate:.55,color:'#f59e0b'},sniper:{cost:180,range:220,damage:55,fireRate:1.35,color:'#60a5fa'},rapid:{cost:150,range:120,damage:9,fireRate:.18,color:'#a78bfa'}};
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function pointSegmentDistance(px,py,x1,y1,x2,y2){const A=px-x1,B=py-y1,C=x2-x1,D=y2-y1,d=A*C+B*D,l=C*C+D*D;let t=l?d/l:-1;t=Math.max(0,Math.min(1,t));const x=x1+t*C,y=y1+t*D;return Math.hypot(px-x,py-y)}
+function isOnPath(x,y){for(let i=0;i<path.length-1;i++)if(pointSegmentDistance(x,y,path[i].x,path[i].y,path[i+1].x,path[i+1].y)<32)return true;return false}
+function canPlaceTower(x,y){if(isOnPath(x,y)||x<20||y<20||x>canvas.width-20||y>canvas.height-20)return false;return !towers.some(t=>dist(t,{x,y})<TILE*.9)}
+class Enemy{constructor(hp,speed,reward){this.x=path[0].x;this.y=path[0].y;this.pathIndex=1;this.maxHp=hp;this.hp=hp;this.speed=speed;this.reward=reward;this.r=13;this.alive=true}
+update(dt){if(!this.alive)return;const target=path[this.pathIndex];if(!target){this.alive=false;lives--;updateUI();if(lives<=0)endGame();return}const dx=target.x-this.x,dy=target.y-this.y,d=Math.hypot(dx,dy);if(d<this.speed*dt){this.x=target.x;this.y=target.y;this.pathIndex++}else{this.x+=dx/d*this.speed*dt;this.y+=dy/d*this.speed*dt}}
+draw(){ctx.beginPath();ctx.fillStyle='#ef4444';ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#7f1d1d';ctx.lineWidth=2;ctx.stroke();const w=28,h=5;ctx.fillStyle='#111827';ctx.fillRect(this.x-w/2,this.y-22,w,h);ctx.fillStyle='#22c55e';ctx.fillRect(this.x-w/2,this.y-22,w*(this.hp/this.maxHp),h)}}
+class Tower{constructor(x,y,type){this.x=x;this.y=y;this.type=type;Object.assign(this,towerTypes[type]);this.cooldown=0;this.angle=0}
+update(dt){this.cooldown-=dt;let target=null,best=-1;for(const e of enemies){if(!e.alive)continue;const d=dist(this,e);if(d<=this.range&&e.pathIndex>best){best=e.pathIndex;target=e}}if(target){this.angle=Math.atan2(target.y-this.y,target.x-this.x);if(this.cooldown<=0){bullets.push(new Bullet(this.x,this.y,target,this.damage,this.color));this.cooldown=this.fireRate}}}
+draw(){ctx.save();ctx.translate(this.x,this.y);ctx.fillStyle='#334155';ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.fill();ctx.rotate(this.angle);ctx.fillStyle=this.color;ctx.fillRect(-5,-6,28,12);ctx.restore();ctx.beginPath();ctx.strokeStyle='rgba(255,255,255,.07)';ctx.arc(this.x,this.y,this.range,0,Math.PI*2);ctx.stroke()}}
+class Bullet{constructor(x,y,target,damage,color){this.x=x;this.y=y;this.target=target;this.damage=damage;this.color=color;this.speed=520;this.alive=true}
+update(dt){if(!this.target||!this.target.alive){this.alive=false;return}const dx=this.target.x-this.x,dy=this.target.y-this.y,d=Math.hypot(dx,dy);if(d<10){this.target.hp-=this.damage;if(this.target.hp<=0&&this.target.alive){this.target.alive=false;money+=this.target.reward;updateUI()}this.alive=false;return}this.x+=dx/d*this.speed*dt;this.y+=dy/d*this.speed*dt}
+draw(){ctx.beginPath();ctx.fillStyle=this.color;ctx.arc(this.x,this.y,4,0,Math.PI*2);ctx.fill()}}
+function startWave(){if(waveActive||gameOver)return;wave++;waveActive=true;const count=7+wave*2,hp=55+wave*18,speed=55+Math.min(40,wave*3);spawnQueue=Array.from({length:count},()=>({hp,speed,reward:14+Math.floor(wave/2)}));spawnTimer=0;ui.message.textContent='Волна '+wave+' началась';updateUI()}
+function update(dt){if(paused||gameOver)return;if(waveActive&&spawnQueue.length){spawnTimer-=dt;if(spawnTimer<=0){const data=spawnQueue.shift();enemies.push(new Enemy(data.hp,data.speed,data.reward));spawnTimer=Math.max(.28,.85-wave*.025)}}enemies.forEach(e=>e.update(dt));towers.forEach(t=>t.update(dt));bullets.forEach(b=>b.update(dt));enemies=enemies.filter(e=>e.alive);bullets=bullets.filter(b=>b.alive);if(waveActive&&spawnQueue.length===0&&enemies.length===0){waveActive=false;money+=40+wave*5;ui.message.textContent='Волна '+wave+' отбита! Бонус получен.';updateUI()}}
+function drawGrid(){ctx.fillStyle='#1f5136';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='rgba(255,255,255,.035)';ctx.lineWidth=1;for(let x=0;x<canvas.width;x+=TILE){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}for(let y=0;y<canvas.height;y+=TILE){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}}
+function drawPath(){ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#8b6f47';ctx.lineWidth=58;ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.stroke();ctx.strokeStyle='#b89a6c';ctx.lineWidth=42;ctx.stroke();ctx.fillStyle='#0f172a';ctx.fillRect(canvas.width-38,346,38,68);ctx.fillStyle='#e2e8f0';ctx.font='bold 13px sans-serif';ctx.fillText('BASE',canvas.width-38,340)}
+function draw(){drawGrid();drawPath();towers.forEach(t=>t.draw());enemies.forEach(e=>e.draw());bullets.forEach(b=>b.draw());if(gameOver){ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 52px sans-serif';ctx.fillText('ИГРА ОКОНЧЕНА',canvas.width/2,canvas.height/2-20);ctx.font='24px sans-serif';ctx.fillText('Ты дошёл до волны '+wave,canvas.width/2,canvas.height/2+28);ctx.textAlign='left'}}
+function updateUI(){ui.money.textContent=money;ui.lives.textContent=lives;ui.wave.textContent=wave;ui.enemies.textContent=enemies.length+spawnQueue.length}
+function endGame(){gameOver=true;ui.message.textContent='База уничтожена.'}
+canvas.addEventListener('click',e=>{if(gameOver)return;const r=canvas.getBoundingClientRect(),sx=canvas.width/r.width,sy=canvas.height/r.height;let x=(e.clientX-r.left)*sx,y=(e.clientY-r.top)*sy;x=Math.floor(x/TILE)*TILE+TILE/2;y=Math.floor(y/TILE)*TILE+TILE/2;const cfg=towerTypes[selectedTowerType];if(!canPlaceTower(x,y)){ui.message.textContent='Здесь башню поставить нельзя.';return}if(money<cfg.cost){ui.message.textContent='Недостаточно денег.';return}money-=cfg.cost;towers.push(new Tower(x,y,selectedTowerType));ui.message.textContent='Башня установлена.';updateUI()});
+document.querySelectorAll('.tower-card').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.tower-card').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selectedTowerType=btn.dataset.type}));
+ui.startWave.addEventListener('click',startWave);ui.pauseBtn.addEventListener('click',()=>{paused=!paused;ui.pauseBtn.textContent=paused?'Продолжить':'Пауза';ui.message.textContent=paused?'Игра на паузе':'Игра продолжается'});
+let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.033);last=now;update(dt);draw();updateUI();requestAnimationFrame(loop)}updateUI();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
