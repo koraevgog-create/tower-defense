@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Пламя Семи Башен — v0.3-alpha-art</title>
+<title>Пламя Семи Башен — v0.3-alpha-art.2</title>
 <style>
 :root{--gold:#f3c86a;--glass:rgba(8,18,31,.79);--line:rgba(255,255,255,.1)}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;color:#fff;font-family:Inter,Segoe UI,Arial,sans-serif}
@@ -63,6 +63,38 @@ for(const [key,src] of Object.entries(ART_PATHS)){
   ART[key]=img;
 }
 function artReady(key){return ART[key]&&ART[key].complete&&ART[key].naturalWidth>0}
+const CLEAN_ART={};
+function cleanupImage(key,tolerance=52){
+  if(CLEAN_ART[key]||!artReady(key)) return CLEAN_ART[key];
+  const img=ART[key], c=document.createElement('canvas');
+  c.width=img.naturalWidth;c.height=img.naturalHeight;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
+  const d=x.getImageData(0,0,c.width,c.height),p=d.data,w=c.width,h=c.height;
+  // Estimate accidental matte colour from image corners.
+  const corners=[[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+  let rr=0,gg=0,bb=0;
+  corners.forEach(([cx,cy])=>{const i=(cy*w+cx)*4;rr+=p[i];gg+=p[i+1];bb+=p[i+2]});
+  rr/=4;gg/=4;bb/=4;
+  const seen=new Uint8Array(w*h), qx=new Int32Array(w*h),qy=new Int32Array(w*h);let qs=0,qe=0;
+  function similar(px,py){
+    const i=(py*w+px)*4;if(p[i+3]<10)return true;
+    const dr=p[i]-rr,dg=p[i+1]-gg,db=p[i+2]-bb;
+    return Math.sqrt(dr*dr+dg*dg+db*db)<tolerance;
+  }
+  function push(px,py){const n=py*w+px;if(seen[n]||!similar(px,py))return;seen[n]=1;qx[qe]=px;qy[qe]=py;qe++;}
+  for(let xx=0;xx<w;xx++){push(xx,0);push(xx,h-1)}
+  for(let yy=0;yy<h;yy++){push(0,yy);push(w-1,yy)}
+  while(qs<qe){const xx=qx[qs],yy=qy[qs++],i=(yy*w+xx)*4;p[i+3]=0;if(xx)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);if(yy)push(xx,yy-1);if(yy<h-1)push(xx,yy+1)}
+  x.putImageData(d,0,0);CLEAN_ART[key]=c;return c;
+}
+function drawCleanBottom(key,x,y,w,tolerance=52){
+  const img=cleanupImage(key,tolerance); if(!img)return false;
+  const h=w*(img.height/img.width);ctx.drawImage(img,x-w/2,y-h,w,h);return true;
+}
+function drawAtlasCrop(sx,sy,sw,sh,dx,dy,dw,dh){
+  if(!artReady('crystal'))return false;
+  ctx.drawImage(ART.crystal,sx,sy,sw,sh,dx,dy,dw,dh);return true;
+}
 function drawImageBottom(img,x,y,w){
   const ratio=img.naturalHeight/img.naturalWidth;
   const h=w*ratio;
@@ -90,18 +122,25 @@ function drawEnemySprite(e){
  ctx.restore();
 }
 function drawTowerSprite(t){
-  const img=ART[t.type];
-  if(artReady(t.type)){
-    const sizes={guard:132,ranger:132,forge:140,crystal:132};
-    ctx.save();
-    if(selectedTower===t){ctx.shadowBlur=22;ctx.shadowColor='rgba(255,220,120,.9)';}
-    drawImageBottom(img,t.x,t.y+33,sizes[t.type]+(t.level-1)*5);
-    ctx.restore();
+  const sizes={guard:104,ranger:105,forge:110,crystal:105};
+  ctx.save();
+  if(selectedTower===t){ctx.shadowBlur=16;ctx.shadowColor='rgba(255,220,120,.75)'}
+  if(t.type!=='crystal'){
+    if(!drawCleanBottom(t.type,t.x,t.y+34,sizes[t.type]+(t.level-1)*4,58)){
+      ctx.fillStyle=t.color;ctx.beginPath();ctx.arc(t.x,t.y,22,0,Math.PI*2);ctx.fill();
+    }
   }else{
-    drawShadow(t.x,t.y+24,26,8,.2);
-    ctx.fillStyle=t.color;ctx.beginPath();ctx.arc(t.x,t.y,24,0,Math.PI*2);ctx.fill();
+    // B04 is stored inside the approved production sheet. Crop the crystal tower
+    // from the lower-right asset panel rather than drawing the whole sheet.
+    if(artReady('crystal')){
+      const iw=ART.crystal.naturalWidth, ih=ART.crystal.naturalHeight;
+      const sx=Math.round(iw*.842), sy=Math.round(ih*.665), sw=Math.round(iw*.153), sh=Math.round(ih*.325);
+      const w=sizes.crystal+(t.level-1)*4,h=w*(sh/sw);
+      ctx.drawImage(ART.crystal,sx,sy,sw,sh,t.x-w/2,t.y+35-h,w,h);
+    }
   }
-  ctx.fillStyle='#fff3bf';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillText('ур. '+t.level,t.x,t.y+45);
+  ctx.restore();
+  ctx.fillStyle='#fff3bf';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText('ур. '+t.level,t.x,t.y+43);
 }
 function drawAllySprite(a){
  const x=a.x,y=a.y,hero=a.type==='hero';drawShadow(x,y+13,hero?14:9,5,.18);ctx.save();ctx.translate(x,y);
@@ -125,36 +164,37 @@ function endGame(win){if(gameEnded)return;gameEnded=true;say(win?'Победа! 
 function update(dt){if(paused||gameEnded)return;if(waveActive&&queue.length){queueCd-=dt;if(queueCd<=0){enemies.push(new Enemy(queue.shift()));queueCd=.78}}enemies.forEach(e=>e.update(dt));towers.forEach(t=>t.update(dt));projectiles.forEach(p=>p.update(dt));allies.forEach(a=>a.update(dt));effects.forEach(f=>f.life-=dt);enemies=enemies.filter(e=>e.alive);projectiles=projectiles.filter(p=>p.alive);allies=allies.filter(a=>a.alive);effects=effects.filter(f=>f.life>0);if(waveActive&&!queue.length&&!enemies.length){waveActive=false;gold+=60+wave*8;flame=Math.min(100,flame+10);if(wave>=waves.length)endGame(true);else{say('Волна отбита. Подготовьте оборону.');updatePreview()}}updateUI()}
 function cloud(x,y,s){ctx.beginPath();ctx.arc(x,y,s*.34,0,Math.PI*2);ctx.arc(x+s*.32,y+3,s*.28,0,Math.PI*2);ctx.arc(x-s*.3,y+7,s*.24,0,Math.PI*2);ctx.fill()}
 function drawBG(){
-  if(artReady('map')){
-    ctx.drawImage(ART.map,0,0,W,H);
+  // B04 source is the approved production sheet; its upper panel is a coherent
+  // forest battlefield and is used as the art background in this integration test.
+  if(artReady('crystal')){
+    const iw=ART.crystal.naturalWidth, ih=ART.crystal.naturalHeight;
+    const topH=Math.round(ih*.655);
+    ctx.drawImage(ART.crystal,0,0,iw,topH,0,0,W,H);
+    ctx.fillStyle='rgba(7,18,22,.10)';ctx.fillRect(0,0,W,H);
   }else{
     const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#9be0fb');g.addColorStop(1,'#4f835f');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   }
-  // subtle route guide keeps gameplay readable on the painted background
-  ctx.save();
-  ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(255,230,165,.22)';ctx.lineWidth=5;
-  ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.stroke();
-  ctx.restore();
-  // Separate approved Temple of the Covenant, layered over the goal area.
+  // Gameplay route is now understated rather than a giant yellow debug line.
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(255,239,190,.18)';ctx.lineWidth=3;
+  ctx.setLineDash([7,12]);ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.stroke();ctx.restore();
+  // Goal temple: clean the accidental matte before drawing.
   if(artReady('temple')){
-    ctx.save();ctx.shadowBlur=24;ctx.shadowColor='rgba(80,190,255,.45)';
-    drawImageBottom(ART.temple,1470,310,300);
-    ctx.restore();
+    ctx.save();ctx.shadowBlur=18;ctx.shadowColor='rgba(80,190,255,.30)';
+    drawCleanBottom('temple',1460,300,230,60);ctx.restore();
   }
 }
 function drawPads(){
   pads.forEach(p=>{
     const occupied=towers.some(t=>t.pad===p);
-    const base=ART.pad, glow=ART.padGlow;
-    if(artReady('pad')){
-      ctx.save();ctx.globalAlpha=occupied?.50:.88;drawImageBottom(base,p.x,p.y+28,82);ctx.restore();
-    }else{
-      ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,30,0,Math.PI*2);ctx.fillStyle='rgba(245,205,115,.22)';ctx.fill();ctx.restore();
-    }
-    if(!occupied && artReady('padGlow')){
-      const pulse=.72+Math.sin(performance.now()/300)*.16;
-      ctx.save();ctx.globalAlpha=pulse;ctx.shadowBlur=20;ctx.shadowColor='rgba(80,190,255,.65)';
-      drawImageBottom(glow,p.x,p.y+31,92);ctx.restore();
+    if(!occupied){
+      ctx.save();
+      const ok=drawCleanBottom('pad',p.x,p.y+27,72,58);
+      if(!ok){ctx.beginPath();ctx.arc(p.x,p.y,28,0,Math.PI*2);ctx.fillStyle='rgba(240,215,145,.25)';ctx.fill()}
+      ctx.restore();
+      if(artReady('padGlow')){
+        ctx.save();ctx.globalAlpha=.55+Math.sin(performance.now()/320)*.13;ctx.shadowBlur=12;ctx.shadowColor='rgba(86,204,255,.45)';
+        drawCleanBottom('padGlow',p.x,p.y+29,76,58);ctx.restore();
+      }
     }
   });
 }
