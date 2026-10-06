@@ -3,70 +3,518 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tower Defense</title>
+<title>Пламя Семи Башен — Прототип</title>
 <style>
-:root{--bg:#111827;--panel:#1f2937;--text:#f9fafb;--muted:#9ca3af;--accent:#f59e0b;--good:#22c55e}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#0b1220,#111827);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
-.wrap{width:min(1180px,96vw);display:grid;grid-template-columns:1fr 280px;gap:14px}.game-shell{background:#0b1220;padding:10px;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
-canvas{width:100%;display:block;border-radius:12px;background:#234;cursor:crosshair}.panel{background:rgba(31,41,55,.96);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
-h1{font-size:20px;margin:0 0 12px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.stat{background:#111827;border-radius:12px;padding:10px}.stat span{display:block;color:var(--muted);font-size:12px}.stat b{font-size:18px}
-.section-title{font-size:13px;color:#cbd5e1;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.08em}.tower-card{width:100%;border:1px solid rgba(255,255,255,.08);background:#111827;color:white;border-radius:12px;padding:10px;margin-bottom:8px;text-align:left;cursor:pointer;transition:.15s}
-.tower-card:hover{transform:translateY(-1px);border-color:#64748b}.tower-card.active{outline:2px solid var(--accent);background:#1b2434}.tower-card b{display:block}.tower-card small{color:var(--muted)}
-button.action{width:100%;border:0;border-radius:12px;padding:11px 12px;margin-top:8px;font-weight:700;cursor:pointer}#startWave{background:var(--good);color:#052e16}#pauseBtn{background:#334155;color:white}
-.hint{color:var(--muted);font-size:12px;line-height:1.45;margin-top:12px}.banner{margin-top:10px;padding:10px;border-radius:10px;background:#111827;font-size:13px;min-height:40px}@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+:root{
+  --ink:#102038;--panel:#152640;--panel2:#0e1b30;--gold:#f2b84b;--cream:#f7e7b7;
+  --green:#46c86f;--red:#ff665c;--blue:#5ec8ff;--violet:#a66cff;--orange:#ff9a45;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0b1526;color:#fff;font-family:Inter,Segoe UI,Arial,sans-serif}
+body{
+  background:
+    radial-gradient(circle at 20% 10%,rgba(67,146,225,.25),transparent 25%),
+    radial-gradient(circle at 80% 0%,rgba(255,177,76,.18),transparent 20%),
+    linear-gradient(#13243f,#0b1526 65%);
+}
+.app{width:min(1480px,98vw);margin:14px auto 24px}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  background:linear-gradient(180deg,#203858,#142740);border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;padding:12px 18px;box-shadow:0 18px 50px rgba(0,0,0,.28)
+}
+.brand{display:flex;gap:14px;align-items:center}
+.sigil{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:25px;
+  background:radial-gradient(circle,#ffe27f,#e28d2d 55%,#6c3b10 56%);box-shadow:0 0 22px rgba(255,184,75,.35)}
+.brand h1{margin:0;font-family:Georgia,serif;font-size:27px;letter-spacing:.4px;color:#ffe7a2}
+.brand small{color:#bfd0e6}
+.stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.stat{background:#0f2037;border:1px solid rgba(255,255,255,.08);padding:8px 12px;border-radius:12px;min-width:88px}
+.stat span{display:block;font-size:11px;color:#8eaccb;text-transform:uppercase;letter-spacing:.08em}
+.stat b{font-size:18px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:14px;margin-top:14px}
+.stage{position:relative;background:#081525;padding:10px;border-radius:18px;border:1px solid rgba(255,255,255,.1);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+canvas{width:100%;display:block;border-radius:12px;aspect-ratio:16/9;background:#7cccf0;cursor:crosshair}
+.overlay{position:absolute;left:22px;top:22px;pointer-events:none}
+.chapter{background:rgba(7,19,34,.82);backdrop-filter:blur(6px);padding:9px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.13)}
+.chapter b{font-family:Georgia,serif;color:#ffe7a2}.chapter small{display:block;color:#b8c8da;margin-top:2px}
+.side{background:linear-gradient(180deg,#1a2e4b,#11223a);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.sectionTitle{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#91abc6;margin:7px 0 8px}
+.towerGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.towerCard{
+  border:1px solid rgba(255,255,255,.1);background:#0f2036;color:#fff;border-radius:13px;padding:10px;cursor:pointer;
+  transition:.15s;text-align:left;min-height:92px
+}
+.towerCard:hover{transform:translateY(-1px);border-color:#7199bf}
+.towerCard.active{outline:2px solid var(--gold);background:#20334d}
+.towerIcon{font-size:25px}.towerCard b{display:block;font-size:12px;margin-top:4px}.towerCard small{color:#93a9bf;font-size:10px}
+.heroCard,.spellRow,.message{background:#0e1e34;border:1px solid rgba(255,255,255,.08);border-radius:13px}
+.heroCard{padding:10px;display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:center}
+.heroFace{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:25px;background:linear-gradient(135deg,#39689a,#14283e);border:2px solid #e7c06b}
+.heroCard b{display:block}.heroCard small{color:#9db0c4}
+.spellRow{padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.spell{
+  border:0;border-radius:10px;padding:9px 7px;background:#263b58;color:#fff;font-weight:700;cursor:pointer;font-size:12px
+}
+.spell.ready{background:linear-gradient(180deg,#5b45a4,#35266e)}
+.spell:disabled{opacity:.45;cursor:not-allowed}
+.flameWrap{margin-top:8px}
+.flameHead{display:flex;justify-content:space-between;font-size:11px;color:#c6d3df}
+.bar{height:10px;background:#07111f;border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.bar > div{height:100%;width:0;background:linear-gradient(90deg,#ff7d39,#ffd34d)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.action{border:0;border-radius:12px;padding:11px;font-weight:800;cursor:pointer}
+#startWave{background:linear-gradient(#77db77,#36a955);color:#072511}
+#pauseBtn{background:#314761;color:#fff}
+.message{margin-top:10px;padding:10px;color:#d7e2ee;font-size:12px;min-height:44px}
+.legend{margin-top:8px;color:#8fa5ba;font-size:10px;line-height:1.45}
+.bottom{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-top:14px}
+.panel{background:linear-gradient(180deg,#172943,#0f1d31);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:14px}
+.panel h3{margin:0 0 8px;font-family:Georgia,serif;color:#ffe1a0}
+.upgradeBox{display:flex;gap:8px;flex-wrap:wrap}
+.upgradeBtn{background:#223b59;color:#fff;border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:12px}
+.upgradeBtn:disabled{opacity:.4;cursor:not-allowed}
+.wavePreview{display:flex;gap:8px;flex-wrap:wrap}
+.enemyChip{background:#0d1b2e;border:1px solid rgba(255,255,255,.08);padding:7px 9px;border-radius:10px;font-size:11px}
+.modal{
+  position:fixed;inset:0;display:none;place-items:center;background:rgba(2,8,16,.76);z-index:30;padding:20px
+}
+.modal.show{display:grid}
+.modalCard{max-width:620px;width:100%;background:linear-gradient(180deg,#203858,#102036);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:24px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.modalCard h2{font-family:Georgia,serif;color:#ffe1a0;font-size:32px;margin:0 0 8px}
+.modalCard p{color:#c7d4e0}
+.modalCard button{padding:12px 18px;border:0;border-radius:12px;background:#e2a744;font-weight:800;cursor:pointer}
+@media(max-width:1050px){.main{grid-template-columns:1fr}.bottom{grid-template-columns:1fr}.side{order:2}}
 </style>
 </head>
 <body>
-<div class="wrap">
-<div class="game-shell"><canvas id="game" width="900" height="560"></canvas></div>
-<aside class="panel">
-<h1>🛡️ Tower Defense</h1>
-<div class="stats">
-<div class="stat"><span>Деньги</span><b id="money">300</b></div>
-<div class="stat"><span>Жизни</span><b id="lives">20</b></div>
-<div class="stat"><span>Волна</span><b id="wave">0</b></div>
-<div class="stat"><span>Врагов</span><b id="enemies">0</b></div>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="sigil">🔥</div>
+      <div><h1>Пламя Семи Башен</h1><small>Глава I — Тьма пробуждается · тестовая миссия «Лесной тракт»</small></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>Золото</span><b id="gold">360</b></div>
+      <div class="stat"><span>Жизни</span><b id="lives">20</b></div>
+      <div class="stat"><span>Волна</span><b id="wave">0/10</b></div>
+      <div class="stat"><span>Врагов</span><b id="enemies">0</b></div>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="stage">
+      <canvas id="game" width="1120" height="630"></canvas>
+      <div class="overlay">
+        <div class="chapter"><b>Лесной тракт</b><small>Удержите путь к Храму Завета</small></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="sectionTitle">Башни</div>
+      <div class="towerGrid">
+        <button class="towerCard active" data-tower="guard"><span class="towerIcon">🛡️</span><b>Стража · 100</b><small>Солдаты удерживают врага</small></button>
+        <button class="towerCard" data-tower="ranger"><span class="towerIcon">🏹</span><b>Лесная · 110</b><small>Быстрая дальняя атака</small></button>
+        <button class="towerCard" data-tower="forge"><span class="towerIcon">⚒️</span><b>Руническая · 150</b><small>Тяжёлый урон по области</small></button>
+        <button class="towerCard" data-tower="crystal"><span class="towerIcon">🔷</span><b>Кристалл · 140</b><small>Магия против брони и теней</small></button>
+      </div>
+
+      <div class="sectionTitle">Герой</div>
+      <div class="heroCard">
+        <div class="heroFace">⚔️</div>
+        <div><b>Арден</b><small>Воин · кликом по карте перемещается и блокирует врагов</small></div>
+      </div>
+
+      <div class="sectionTitle">Пламя</div>
+      <div class="flameWrap">
+        <div class="flameHead"><span>Энергия Завета</span><b id="flameText">0 / 100</b></div>
+        <div class="bar"><div id="flameBar"></div></div>
+      </div>
+      <div class="spellRow">
+        <button class="spell" id="fireRain">🔥 Огненный дождь<br><small>60 Пламени</small></button>
+        <button class="spell" id="reinforce">🛡️ Подкрепление<br><small>35 Пламени</small></button>
+      </div>
+
+      <div class="actions">
+        <button class="action" id="startWave">Начать волну</button>
+        <button class="action" id="pauseBtn">Пауза</button>
+      </div>
+      <div class="message" id="message">Выберите башню и кликните по свободной площадке рядом с дорогой.</div>
+      <div class="legend">Клик по установленной башне — выбрать её для улучшения. Клик по карте при выбранном Ардене — переместить героя. Башни не получают урон.</div>
+    </aside>
+  </div>
+
+  <div class="bottom">
+    <section class="panel">
+      <h3>Выбранная башня</h3>
+      <div id="towerInfo">Башня не выбрана.</div>
+      <div class="upgradeBox" style="margin-top:10px">
+        <button class="upgradeBtn" id="upgradeBtn" disabled>Улучшить</button>
+        <button class="upgradeBtn" id="specialA" disabled>Специализация A</button>
+        <button class="upgradeBtn" id="specialB" disabled>Специализация B</button>
+      </div>
+    </section>
+    <section class="panel">
+      <h3>Следующая волна</h3>
+      <div class="wavePreview" id="wavePreview"></div>
+    </section>
+  </div>
 </div>
-<div class="section-title">Башни</div>
-<button class="tower-card active" data-type="basic"><b>⚙️ Пулемётная — 100</b><small>Быстрая, средний урон</small></button>
-<button class="tower-card" data-type="sniper"><b>🎯 Снайперская — 180</b><small>Дальний радиус, высокий урон</small></button>
-<button class="tower-card" data-type="rapid"><b>⚡ Скоростная — 150</b><small>Очень быстрая, слабее выстрел</small></button>
-<button class="action" id="startWave">Запустить волну</button>
-<button class="action" id="pauseBtn">Пауза</button>
-<div class="banner" id="message">Выбери башню и поставь её рядом с дорогой.</div>
-<div class="hint">Клик по свободной клетке — установить башню.<br>Нельзя ставить башни на дороге.<br>Уничтожай врагов до того, как они дойдут до базы.</div>
-</aside>
-</div>
+
+<div class="modal" id="endModal"><div class="modalCard">
+  <h2 id="endTitle">Победа</h2>
+  <p id="endText"></p>
+  <button onclick="location.reload()">Сыграть ещё раз</button>
+</div></div>
+
 <script>
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
-const ui={money:moneyEl=document.getElementById('money'),lives:livesEl=document.getElementById('lives'),wave:waveEl=document.getElementById('wave'),enemies:enemiesEl=document.getElementById('enemies'),message:document.getElementById('message'),startWave:document.getElementById('startWave'),pauseBtn:document.getElementById('pauseBtn')};
-const TILE=40;let money=300,lives=20,wave=0,selectedTowerType='basic',towers=[],enemies=[],bullets=[],waveActive=false,paused=false,spawnQueue=[],spawnTimer=0,gameOver=false;
-const path=[{x:-20,y:100},{x:180,y:100},{x:180,y:260},{x:420,y:260},{x:420,y:140},{x:660,y:140},{x:660,y:380},{x:920,y:380}];
-const towerTypes={basic:{cost:100,range:135,damage:18,fireRate:.55,color:'#f59e0b'},sniper:{cost:180,range:220,damage:55,fireRate:1.35,color:'#60a5fa'},rapid:{cost:150,range:120,damage:9,fireRate:.18,color:'#a78bfa'}};
-const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-function pointSegmentDistance(px,py,x1,y1,x2,y2){const A=px-x1,B=py-y1,C=x2-x1,D=y2-y1,d=A*C+B*D,l=C*C+D*D;let t=l?d/l:-1;t=Math.max(0,Math.min(1,t));const x=x1+t*C,y=y1+t*D;return Math.hypot(px-x,py-y)}
-function isOnPath(x,y){for(let i=0;i<path.length-1;i++)if(pointSegmentDistance(x,y,path[i].x,path[i].y,path[i+1].x,path[i+1].y)<32)return true;return false}
-function canPlaceTower(x,y){if(isOnPath(x,y)||x<20||y<20||x>canvas.width-20||y>canvas.height-20)return false;return !towers.some(t=>dist(t,{x,y})<TILE*.9)}
-class Enemy{constructor(hp,speed,reward){this.x=path[0].x;this.y=path[0].y;this.pathIndex=1;this.maxHp=hp;this.hp=hp;this.speed=speed;this.reward=reward;this.r=13;this.alive=true}
-update(dt){if(!this.alive)return;const target=path[this.pathIndex];if(!target){this.alive=false;lives--;updateUI();if(lives<=0)endGame();return}const dx=target.x-this.x,dy=target.y-this.y,d=Math.hypot(dx,dy);if(d<this.speed*dt){this.x=target.x;this.y=target.y;this.pathIndex++}else{this.x+=dx/d*this.speed*dt;this.y+=dy/d*this.speed*dt}}
-draw(){ctx.beginPath();ctx.fillStyle='#ef4444';ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#7f1d1d';ctx.lineWidth=2;ctx.stroke();const w=28,h=5;ctx.fillStyle='#111827';ctx.fillRect(this.x-w/2,this.y-22,w,h);ctx.fillStyle='#22c55e';ctx.fillRect(this.x-w/2,this.y-22,w*(this.hp/this.maxHp),h)}}
-class Tower{constructor(x,y,type){this.x=x;this.y=y;this.type=type;Object.assign(this,towerTypes[type]);this.cooldown=0;this.angle=0}
-update(dt){this.cooldown-=dt;let target=null,best=-1;for(const e of enemies){if(!e.alive)continue;const d=dist(this,e);if(d<=this.range&&e.pathIndex>best){best=e.pathIndex;target=e}}if(target){this.angle=Math.atan2(target.y-this.y,target.x-this.x);if(this.cooldown<=0){bullets.push(new Bullet(this.x,this.y,target,this.damage,this.color));this.cooldown=this.fireRate}}}
-draw(){ctx.save();ctx.translate(this.x,this.y);ctx.fillStyle='#334155';ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.fill();ctx.rotate(this.angle);ctx.fillStyle=this.color;ctx.fillRect(-5,-6,28,12);ctx.restore();ctx.beginPath();ctx.strokeStyle='rgba(255,255,255,.07)';ctx.arc(this.x,this.y,this.range,0,Math.PI*2);ctx.stroke()}}
-class Bullet{constructor(x,y,target,damage,color){this.x=x;this.y=y;this.target=target;this.damage=damage;this.color=color;this.speed=520;this.alive=true}
-update(dt){if(!this.target||!this.target.alive){this.alive=false;return}const dx=this.target.x-this.x,dy=this.target.y-this.y,d=Math.hypot(dx,dy);if(d<10){this.target.hp-=this.damage;if(this.target.hp<=0&&this.target.alive){this.target.alive=false;money+=this.target.reward;updateUI()}this.alive=false;return}this.x+=dx/d*this.speed*dt;this.y+=dy/d*this.speed*dt}
-draw(){ctx.beginPath();ctx.fillStyle=this.color;ctx.arc(this.x,this.y,4,0,Math.PI*2);ctx.fill()}}
-function startWave(){if(waveActive||gameOver)return;wave++;waveActive=true;const count=7+wave*2,hp=55+wave*18,speed=55+Math.min(40,wave*3);spawnQueue=Array.from({length:count},()=>({hp,speed,reward:14+Math.floor(wave/2)}));spawnTimer=0;ui.message.textContent='Волна '+wave+' началась';updateUI()}
-function update(dt){if(paused||gameOver)return;if(waveActive&&spawnQueue.length){spawnTimer-=dt;if(spawnTimer<=0){const data=spawnQueue.shift();enemies.push(new Enemy(data.hp,data.speed,data.reward));spawnTimer=Math.max(.28,.85-wave*.025)}}enemies.forEach(e=>e.update(dt));towers.forEach(t=>t.update(dt));bullets.forEach(b=>b.update(dt));enemies=enemies.filter(e=>e.alive);bullets=bullets.filter(b=>b.alive);if(waveActive&&spawnQueue.length===0&&enemies.length===0){waveActive=false;money+=40+wave*5;ui.message.textContent='Волна '+wave+' отбита! Бонус получен.';updateUI()}}
-function drawGrid(){ctx.fillStyle='#1f5136';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='rgba(255,255,255,.035)';ctx.lineWidth=1;for(let x=0;x<canvas.width;x+=TILE){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}for(let y=0;y<canvas.height;y+=TILE){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}}
-function drawPath(){ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#8b6f47';ctx.lineWidth=58;ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.stroke();ctx.strokeStyle='#b89a6c';ctx.lineWidth=42;ctx.stroke();ctx.fillStyle='#0f172a';ctx.fillRect(canvas.width-38,346,38,68);ctx.fillStyle='#e2e8f0';ctx.font='bold 13px sans-serif';ctx.fillText('BASE',canvas.width-38,340)}
-function draw(){drawGrid();drawPath();towers.forEach(t=>t.draw());enemies.forEach(e=>e.draw());bullets.forEach(b=>b.draw());if(gameOver){ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 52px sans-serif';ctx.fillText('ИГРА ОКОНЧЕНА',canvas.width/2,canvas.height/2-20);ctx.font='24px sans-serif';ctx.fillText('Ты дошёл до волны '+wave,canvas.width/2,canvas.height/2+28);ctx.textAlign='left'}}
-function updateUI(){ui.money.textContent=money;ui.lives.textContent=lives;ui.wave.textContent=wave;ui.enemies.textContent=enemies.length+spawnQueue.length}
-function endGame(){gameOver=true;ui.message.textContent='База уничтожена.'}
-canvas.addEventListener('click',e=>{if(gameOver)return;const r=canvas.getBoundingClientRect(),sx=canvas.width/r.width,sy=canvas.height/r.height;let x=(e.clientX-r.left)*sx,y=(e.clientY-r.top)*sy;x=Math.floor(x/TILE)*TILE+TILE/2;y=Math.floor(y/TILE)*TILE+TILE/2;const cfg=towerTypes[selectedTowerType];if(!canPlaceTower(x,y)){ui.message.textContent='Здесь башню поставить нельзя.';return}if(money<cfg.cost){ui.message.textContent='Недостаточно денег.';return}money-=cfg.cost;towers.push(new Tower(x,y,selectedTowerType));ui.message.textContent='Башня установлена.';updateUI()});
-document.querySelectorAll('.tower-card').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.tower-card').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selectedTowerType=btn.dataset.type}));
-ui.startWave.addEventListener('click',startWave);ui.pauseBtn.addEventListener('click',()=>{paused=!paused;ui.pauseBtn.textContent=paused?'Продолжить':'Пауза';ui.message.textContent=paused?'Игра на паузе':'Игра продолжается'});
-let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.033);last=now;update(dt);draw();updateUI();requestAnimationFrame(loop)}updateUI();requestAnimationFrame(loop);
+const ui={
+ gold:document.getElementById('gold'),lives:document.getElementById('lives'),
+ wave:document.getElementById('wave'),enemies:document.getElementById('enemies'),
+ flameText:document.getElementById('flameText'),flameBar:document.getElementById('flameBar'),
+ message:document.getElementById('message'),startWave:document.getElementById('startWave'),
+ pauseBtn:document.getElementById('pauseBtn'),towerInfo:document.getElementById('towerInfo'),
+ upgradeBtn:document.getElementById('upgradeBtn'),specialA:document.getElementById('specialA'),
+ specialB:document.getElementById('specialB'),wavePreview:document.getElementById('wavePreview'),
+ fireRain:document.getElementById('fireRain'),reinforce:document.getElementById('reinforce')
+};
+
+const W=canvas.width,H=canvas.height,TILE=56;
+let gold=360,lives=20,flame=0,wave=0,paused=false,waveActive=false,gameEnded=false;
+let selectedTowerType='guard',selectedTower=null,heroMode=false;
+let towers=[],enemies=[],projectiles=[],allies=[],effects=[];
+let spawnQueue=[],spawnCooldown=0;
+
+const path=[
+ {x:-30,y:500},{x:155,y:500},{x:155,y:350},{x:380,y:350},{x:380,y:190},
+ {x:625,y:190},{x:625,y:415},{x:845,y:415},{x:845,y:255},{x:1150,y:255}
+];
+
+const towerDefs={
+ guard:{name:'Стража',cost:100,color:'#d6b45e',range:115,damage:5,rate:.85,icon:'🛡️',desc:'Призывает солдат, которые блокируют врагов.'},
+ ranger:{name:'Лесная башня',cost:110,color:'#58c979',range:175,damage:14,rate:.5,icon:'🏹',desc:'Быстро стреляет по врагам на большом расстоянии.'},
+ forge:{name:'Руническая кузница',cost:150,color:'#e88a46',range:150,damage:31,rate:1.35,icon:'⚒️',desc:'Медленные взрывные снаряды с уроном по области.'},
+ crystal:{name:'Магический кристалл',cost:140,color:'#61c7ff',range:160,damage:20,rate:.75,icon:'🔷',desc:'Магическая атака особенно эффективна против брони и теней.'}
+};
+
+const enemyDefs={
+ orc:{name:'Орк-мародёр',hp:90,speed:48,reward:14,armor:0,color:'#6e9e45',size:14,icon:'👹'},
+ scout:{name:'Орк-разведчик',hp:55,speed:82,reward:12,armor:0,color:'#9ac957',size:11,icon:'🏃'},
+ ash:{name:'Тварь пепла',hp:72,speed:96,reward:15,armor:0,color:'#e34c3f',size:12,icon:'🔥'},
+ knight:{name:'Падший рыцарь',hp:220,speed:34,reward:27,armor:.45,color:'#4f5366',size:16,icon:'♞'},
+ shadow:{name:'Тень',hp:125,speed:60,reward:22,armor:.65,magicWeak:true,color:'#6755a5',size:13,icon:'👤'},
+ boss:{name:'Вестник Пепла',hp:1450,speed:27,reward:200,armor:.25,color:'#8d2f24',size:27,icon:'👑',boss:true}
+};
+
+const waves=[
+ ['orc','orc','orc','scout','orc','orc'],
+ ['orc','scout','scout','orc','orc','ash','orc'],
+ ['orc','orc','ash','ash','scout','scout','orc','orc'],
+ ['knight','orc','orc','scout','ash','orc','knight'],
+ ['shadow','orc','ash','scout','shadow','orc','orc','knight'],
+ ['knight','knight','scout','ash','ash','shadow','orc','orc'],
+ ['shadow','shadow','knight','scout','scout','ash','ash','orc'],
+ ['knight','orc','shadow','ash','knight','scout','shadow','ash','orc'],
+ ['knight','knight','shadow','shadow','ash','ash','scout','orc','orc','orc'],
+ ['orc','ash','shadow','knight','scout','ash','shadow','knight','boss']
+];
+
+function d(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function pointSeg(px,py,x1,y1,x2,y2){
+ const A=px-x1,B=py-y1,C=x2-x1,D=y2-y1,len=C*C+D*D;
+ let t=len?(A*C+B*D)/len:0;t=Math.max(0,Math.min(1,t));
+ return Math.hypot(px-(x1+t*C),py-(y1+t*D));
+}
+function onPath(x,y,margin=38){
+ for(let i=0;i<path.length-1;i++) if(pointSeg(x,y,path[i].x,path[i].y,path[i+1].x,path[i+1].y)<margin) return true;
+ return false;
+}
+function towerAt(x,y){return towers.find(t=>d(t,{x,y})<26)}
+function canPlace(x,y){return !onPath(x,y,48)&&x>28&&y>28&&x<W-28&&y<H-28&&!towers.some(t=>d(t,{x,y})<52)}
+
+class Enemy{
+ constructor(type){
+  const z=enemyDefs[type];Object.assign(this,z);this.type=type;this.maxHp=z.hp;this.hp=z.hp;this.x=path[0].x;this.y=path[0].y;
+  this.pathIndex=1;this.alive=true;this.slow=0;this.attackCd=0;this.summoned=false;this.bossStop=0;
+ }
+ update(dt){
+  if(!this.alive)return;
+  if(this.boss){
+   if(this.hp<this.maxHp*.7&&!this.summoned){this.summoned=true;this.bossStop=2.6;this.summon()}
+   if(this.hp<this.maxHp*.35&&!this.enraged){this.enraged=true;this.speed*=1.35;effects.push({type:'text',x:this.x,y:this.y-42,text:'ЯРОСТЬ!',life:1.4})}
+   if(this.bossStop>0){this.bossStop-=dt;return}
+  }
+  const blocker=findBlocker(this);
+  if(blocker){
+   this.attackCd-=dt;
+   if(this.attackCd<=0){
+    blocker.hp-=this.boss?38:(this.type==='knight'?18:10);
+    this.attackCd=this.boss?1.05:1.15;
+    effects.push({type:'hit',x:blocker.x,y:blocker.y,life:.25});
+   }
+   return;
+  }
+  const target=path[this.pathIndex];
+  if(!target){this.alive=false;lives--;updateUI();if(lives<=0)finish(false);return}
+  const dx=target.x-this.x,dy=target.y-this.y,dist=Math.hypot(dx,dy),spd=this.speed*(this.slow>0?.55:1);
+  if(this.slow>0)this.slow-=dt;
+  if(dist<spd*dt){this.x=target.x;this.y=target.y;this.pathIndex++}
+  else{this.x+=dx/dist*spd*dt;this.y+=dy/dist*spd*dt}
+ }
+ summon(){
+  effects.push({type:'burst',x:this.x,y:this.y,life:.8});
+  for(let i=0;i<4;i++){
+   const e=new Enemy(i<2?'orc':'ash');e.x=this.x-(i+1)*18;e.y=this.y+((i%2)*24-12);e.pathIndex=this.pathIndex;enemies.push(e)
+  }
+  msg('Вестник Пепла остановился и призвал подкрепление!');
+ }
+ draw(){
+  ctx.save();ctx.translate(this.x,this.y);
+  if(this.type==='shadow'){ctx.globalAlpha=.72;ctx.shadowBlur=18;ctx.shadowColor='#9d82ff'}
+  if(this.boss){ctx.shadowBlur=18;ctx.shadowColor='#ff4e38'}
+  ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(0,0,this.size,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=this.boss?'#ffb75d':'rgba(0,0,0,.35)';ctx.lineWidth=this.boss?4:2;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font=this.boss?'18px sans-serif':'13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(this.icon,0,0);
+  ctx.restore();
+  const bw=this.boss?70:34;ctx.fillStyle='#14202f';ctx.fillRect(this.x-bw/2,this.y-this.size-13,bw,5);
+  ctx.fillStyle=this.boss?'#ff744c':'#72d67b';ctx.fillRect(this.x-bw/2,this.y-this.size-13,bw*Math.max(0,this.hp/this.maxHp),5)
+ }
+ damageTaken(raw,kind='physical'){
+  let dmg=raw;
+  if(kind==='magic'&&this.magicWeak)dmg*=1.65;
+  else if(kind==='physical')dmg*=1-this.armor;
+  this.hp-=dmg;
+  if(this.hp<=0&&this.alive){
+   this.alive=false;gold+=this.reward;flame=Math.min(100,flame+(this.boss?35:5));effects.push({type:'burst',x:this.x,y:this.y,life:.45});updateUI()
+  }
+ }
+}
+
+class Tower{
+ constructor(x,y,type){
+  Object.assign(this,towerDefs[type]);this.type=type;this.x=x;this.y=y;this.level=1;this.cool=0;this.spec=null;this.angle=0;this.soldierCd=0;
+ }
+ update(dt){
+  if(this.type==='guard'){this.updateGuard(dt);return}
+  this.cool-=dt;let target=null,best=-1;
+  for(const e of enemies){if(!e.alive)continue;const range=d(this,e);if(range<=this.range&&e.pathIndex>=best){best=e.pathIndex;target=e}}
+  if(target){
+   this.angle=Math.atan2(target.y-this.y,target.x-this.x);
+   if(this.cool<=0){projectiles.push(new Projectile(this,target));this.cool=this.rate}
+  }
+ }
+ updateGuard(dt){
+  this.soldierCd-=dt;
+  const own=allies.filter(a=>a.owner===this&&a.alive);
+  if(own.length<(this.level>=3?3:2)&&this.soldierCd<=0){
+   const p=nearestPathPoint(this.x,this.y);allies.push(new Ally(p.x,p.y,this,'soldier'));this.soldierCd=2.5
+  }
+ }
+ draw(){
+  ctx.save();ctx.translate(this.x,this.y);
+  ctx.shadowBlur=14;ctx.shadowColor=this.color;
+  ctx.fillStyle='#273b4f';ctx.beginPath();ctx.arc(0,0,22,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=this.color;ctx.lineWidth=4;ctx.stroke();
+  ctx.fillStyle=this.color;
+  if(this.type==='ranger'){ctx.rotate(this.angle);ctx.fillRect(-4,-6,31,12)}
+  else if(this.type==='forge'){ctx.rotate(this.angle);ctx.fillRect(-7,-8,34,16)}
+  else if(this.type==='crystal'){ctx.beginPath();ctx.moveTo(0,-22);ctx.lineTo(15,8);ctx.lineTo(0,20);ctx.lineTo(-15,8);ctx.closePath();ctx.fill()}
+  else {ctx.font='23px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🛡️',0,0)}
+  ctx.restore();
+  ctx.fillStyle='#fff3c3';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText('III'.slice(0,this.level),this.x,this.y+36)
+ }
+}
+
+class Projectile{
+ constructor(tower,target){
+  this.x=tower.x;this.y=tower.y;this.target=target;this.tower=tower;this.alive=true;this.speed=tower.type==='forge'?260:480;
+  this.damage=tower.damage*(1+(tower.level-1)*.55);this.kind=tower.type==='crystal'?'magic':'physical';this.color=tower.color
+ }
+ update(dt){
+  if(!this.target||!this.target.alive){this.alive=false;return}
+  const dx=this.target.x-this.x,dy=this.target.y-this.y,dist=Math.hypot(dx,dy);
+  if(dist<9){
+   if(this.tower.type==='forge'){
+    for(const e of enemies)if(e.alive&&d(e,this.target)<58)e.damageTaken(this.damage,'physical')
+   }else{
+    this.target.damageTaken(this.damage,this.kind);
+    if(this.tower.spec==='slow'&&this.kind==='magic')this.target.slow=1.7;
+   }
+   this.alive=false;return
+  }
+  this.x+=dx/dist*this.speed*dt;this.y+=dy/dist*this.speed*dt
+ }
+ draw(){ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.x,this.y,this.tower.type==='forge'?6:4,0,Math.PI*2);ctx.fill()}
+}
+
+class Ally{
+ constructor(x,y,owner,type='soldier'){
+  this.x=x;this.y=y;this.owner=owner;this.type=type;this.maxHp=type==='hero'?320:85;this.hp=this.maxHp;this.alive=true;this.damage=type==='hero'?24:10;this.attackCd=0
+ }
+ update(dt){
+  if(!this.alive)return;
+  if(this.hp<=0){this.alive=false;if(this.type==='hero'){setTimeout(()=>respawnHero(),4000)}return}
+  let target=null,best=9999;
+  for(const e of enemies){if(!e.alive)continue;const dd=d(this,e);if(dd<best&&dd<(this.type==='hero'?42:28)){best=dd;target=e}}
+  this.attackCd-=dt;
+  if(target&&this.attackCd<=0){target.damageTaken(this.damage,'physical');this.attackCd=this.type==='hero'?.65:.9}
+ }
+ draw(){
+  ctx.save();ctx.translate(this.x,this.y);
+  ctx.fillStyle=this.type==='hero'?'#3f75b4':'#d0b365';ctx.beginPath();ctx.arc(0,0,this.type==='hero'?15:9,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';ctx.font=this.type==='hero'?'16px sans-serif':'10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(this.type==='hero'?'⚔️':'🛡️',0,0);ctx.restore();
+  const bw=this.type==='hero'?34:20;ctx.fillStyle='#132032';ctx.fillRect(this.x-bw/2,this.y-22,bw,4);ctx.fillStyle='#5fd073';ctx.fillRect(this.x-bw/2,this.y-22,bw*Math.max(0,this.hp/this.maxHp),4)
+ }
+}
+
+let hero=new Ally(290,455,null,'hero');allies.push(hero);
+function respawnHero(){
+ if(gameEnded)return;hero=new Ally(290,455,null,'hero');allies.push(hero);msg('Арден вернулся в бой.')
+}
+
+function findBlocker(e){
+ let best=null,bd=999;
+ for(const a of allies){if(!a.alive)continue;const dd=d(e,a);if(dd<(a.type==='hero'?28:20)&&dd<bd){best=a;bd=dd}}
+ return best
+}
+function nearestPathPoint(x,y){
+ let best={x:path[0].x,y:path[0].y},bd=1e9;
+ for(let i=0;i<path.length-1;i++){
+  const a=path[i],b=path[i+1],vx=b.x-a.x,vy=b.y-a.y,len=vx*vx+vy*vy;
+  let t=len?((x-a.x)*vx+(y-a.y)*vy)/len:0;t=Math.max(0,Math.min(1,t));
+  const px=a.x+t*vx,py=a.y+t*vy,dd=Math.hypot(x-px,y-py);if(dd<bd){bd=dd;best={x:px,y:py}}
+ }
+ return best
+}
+
+function startWave(){
+ if(waveActive||gameEnded||wave>=10)return;
+ wave++;waveActive=true;spawnQueue=[...waves[wave-1]];spawnCooldown=.2;
+ msg('Волна '+wave+' началась.');updatePreview();updateUI()
+}
+function spawnEnemy(type){enemies.push(new Enemy(type))}
+function update(dt){
+ if(paused||gameEnded)return;
+ if(waveActive&&spawnQueue.length){
+  spawnCooldown-=dt;if(spawnCooldown<=0){spawnEnemy(spawnQueue.shift());spawnCooldown=.75}
+ }
+ for(const e of enemies)e.update(dt);
+ for(const t of towers)t.update(dt);
+ for(const p of projectiles)p.update(dt);
+ for(const a of allies)a.update(dt);
+ for(const fx of effects)fx.life-=dt;
+ enemies=enemies.filter(e=>e.alive);projectiles=projectiles.filter(p=>p.alive);allies=allies.filter(a=>a.alive);effects=effects.filter(f=>f.life>0);
+ if(waveActive&&!spawnQueue.length&&!enemies.length){
+  waveActive=false;gold+=55+wave*7;flame=Math.min(100,flame+10);msg('Волна '+wave+' отбита! Получен бонус.');
+  if(wave>=10)finish(true)
+ }
+ updateUI()
+}
+
+function drawWorld(){
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#8bd4f3');g.addColorStop(.56,'#7fcaa5');g.addColorStop(1,'#4b8c64');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ // distant mountains
+ ctx.fillStyle='#8bb5c4';ctx.beginPath();ctx.moveTo(0,230);for(let x=0;x<=W;x+=90)ctx.lineTo(x,110+(x%180?80:10));ctx.lineTo(W,300);ctx.lineTo(0,300);ctx.fill();
+ // floating islands and waterfalls
+ const islands=[[120,130,120],[460,80,145],[820,115,120],[1000,65,95]];
+ for(const [x,y,r] of islands){
+  ctx.fillStyle='#567849';ctx.beginPath();ctx.ellipse(x,y,r,34,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#5c5140';ctx.beginPath();ctx.moveTo(x-r*.65,y+18);ctx.lineTo(x,y+r*.9);ctx.lineTo(x+r*.65,y+18);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#c9b987';for(let i=-1;i<=1;i++){ctx.fillRect(x+i*28-7,y-8,14,18)}
+ }
+ ctx.fillStyle='rgba(210,245,255,.72)';ctx.fillRect(450,104,14,122);ctx.fillRect(813,137,10,94);
+ // vegetation dots
+ for(let i=0;i<48;i++){const x=(i*97)%W,y=320+((i*47)%250);ctx.fillStyle=i%3?'#2e6b46':'#3f8054';ctx.beginPath();ctx.arc(x,y,10+(i%4)*2,0,Math.PI*2);ctx.fill()}
+ // road
+ ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#755b40';ctx.lineWidth=68;ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.stroke();
+ ctx.strokeStyle='#c8a96f';ctx.lineWidth=52;ctx.stroke();
+ ctx.setLineDash([8,13]);ctx.strokeStyle='rgba(255,244,205,.45)';ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);
+ // shrine
+ ctx.fillStyle='#274765';ctx.fillRect(1080,205,35,95);ctx.fillStyle='#73d6ff';ctx.beginPath();ctx.moveTo(1097,165);ctx.lineTo(1120,212);ctx.lineTo(1074,212);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#fff1b8';ctx.font='bold 12px Georgia';ctx.fillText('Храм Завета',1010,188)
+}
+function draw(){
+ drawWorld();for(const t of towers)t.draw();for(const a of allies)a.draw();for(const e of enemies)e.draw();for(const p of projectiles)p.draw();
+ for(const fx of effects){
+  ctx.save();ctx.globalAlpha=Math.min(1,fx.life*2);
+  if(fx.type==='burst'){ctx.strokeStyle='#ffd45f';ctx.lineWidth=5;ctx.beginPath();ctx.arc(fx.x,fx.y,38*(1-fx.life),0,Math.PI*2);ctx.stroke()}
+  if(fx.type==='hit'){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(fx.x,fx.y,10,0,Math.PI*2);ctx.fill()}
+  if(fx.type==='text'){ctx.fillStyle='#ffda75';ctx.font='bold 20px Georgia';ctx.textAlign='center';ctx.fillText(fx.text,fx.x,fx.y)}
+  ctx.restore()
+ }
+ if(paused){ctx.fillStyle='rgba(5,13,25,.45)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 48px Georgia';ctx.textAlign='center';ctx.fillText('ПАУЗА',W/2,H/2)}
+}
+
+function upgradeSelected(){
+ if(!selectedTower||selectedTower.level>=3)return;
+ const cost=70+selectedTower.level*55;if(gold<cost){msg('Недостаточно золота.');return}
+ gold-=cost;selectedTower.level++;selectedTower.damage*=1.23;selectedTower.range+=12;selectedTower.rate*=.92;refreshTowerInfo();updateUI()
+}
+function chooseSpec(which){
+ if(!selectedTower||selectedTower.level<3||selectedTower.spec)return;
+ const cost=180;if(gold<cost){msg('Недостаточно золота для специализации.');return}
+ gold-=cost;
+ if(selectedTower.type==='ranger')selectedTower.spec=which==='A'?'crit':'multi';
+ else if(selectedTower.type==='crystal')selectedTower.spec=which==='A'?'slow':'surge';
+ else if(selectedTower.type==='forge')selectedTower.spec=which==='A'?'blast':'pierce';
+ else selectedTower.spec=which==='A'?'veterans':'shield';
+ selectedTower.damage*=1.35;selectedTower.range+=16;refreshTowerInfo();updateUI()
+}
+function refreshTowerInfo(){
+ if(!selectedTower){ui.towerInfo.textContent='Башня не выбрана.';ui.upgradeBtn.disabled=true;ui.specialA.disabled=true;ui.specialB.disabled=true;return}
+ const nextCost=70+selectedTower.level*55;
+ ui.towerInfo.innerHTML='<b>'+selectedTower.icon+' '+selectedTower.name+'</b><br><small>'+selectedTower.desc+'</small><br>Уровень: <b>'+selectedTower.level+'</b> · Радиус: '+Math.round(selectedTower.range)+' · '+(selectedTower.spec?'Специализация: <b>'+selectedTower.spec+'</b>':'Специализация не выбрана');
+ ui.upgradeBtn.disabled=selectedTower.level>=3;ui.upgradeBtn.textContent=selectedTower.level>=3?'Макс. уровень':'Улучшить · '+nextCost;
+ const specReady=selectedTower.level>=3&&!selectedTower.spec;ui.specialA.disabled=!specReady;ui.specialB.disabled=!specReady;
+ ui.specialA.textContent='Специализация A · 180';ui.specialB.textContent='Специализация B · 180'
+}
+function updatePreview(){
+ const arr=waves[Math.min(wave,9)]||[];const counts={};arr.forEach(x=>counts[x]=(counts[x]||0)+1);
+ ui.wavePreview.innerHTML=Object.entries(counts).map(([k,n])=>'<div class="enemyChip">'+enemyDefs[k].icon+' '+enemyDefs[k].name+' × '+n+'</div>').join('')||'<div class="enemyChip">Финальная волна пройдена</div>'
+}
+function updateUI(){
+ ui.gold.textContent=Math.floor(gold);ui.lives.textContent=lives;ui.wave.textContent=wave+'/10';ui.enemies.textContent=enemies.length+spawnQueue.length;
+ ui.flameText.textContent=Math.floor(flame)+' / 100';ui.flameBar.style.width=flame+'%';
+ ui.fireRain.classList.toggle('ready',flame>=60);ui.reinforce.classList.toggle('ready',flame>=35)
+}
+function msg(t){ui.message.textContent=t}
+function finish(win){
+ if(gameEnded)return;gameEnded=true;document.getElementById('endModal').classList.add('show');
+ document.getElementById('endTitle').textContent=win?'Победа!':'Рубеж пал';
+ document.getElementById('endText').textContent=win?'Лесной тракт удержан. Союзники получают первую надежду на победу над Талнаром.':'Тьма прорвалась к Храму Завета. Попробуйте изменить расстановку башен.'
+}
+
+canvas.addEventListener('click',e=>{
+ if(gameEnded)return;const r=canvas.getBoundingClientRect(),sx=W/r.width,sy=H/r.height,x=(e.clientX-r.left)*sx,y=(e.clientY-r.top)*sy;
+ const existing=towerAt(x,y);if(existing){selectedTower=existing;refreshTowerInfo();msg('Выбрана башня: '+existing.name);return}
+ if(heroMode){
+  const p=nearestPathPoint(x,y);hero.x=p.x;hero.y=p.y;heroMode=false;msg('Арден перемещён.');return
+ }
+ const cfg=towerDefs[selectedTowerType];if(!canPlace(x,y)){msg('Здесь нельзя построить башню.');return}
+ if(gold<cfg.cost){msg('Недостаточно золота.');return}
+ const gx=Math.round(x/TILE)*TILE,gy=Math.round(y/TILE)*TILE;if(!canPlace(gx,gy)){msg('Место слишком близко к дороге или другой башне.');return}
+ gold-=cfg.cost;const t=new Tower(gx,gy,selectedTowerType);towers.push(t);selectedTower=t;refreshTowerInfo();updateUI();msg(cfg.name+' построена.')
+});
+document.querySelectorAll('.towerCard').forEach(b=>b.addEventListener('click',()=>{
+ document.querySelectorAll('.towerCard').forEach(x=>x.classList.remove('active'));b.classList.add('active');selectedTowerType=b.dataset.tower;selectedTower=null;refreshTowerInfo()
+}));
+document.querySelector('.heroCard').addEventListener('click',()=>{heroMode=true;msg('Кликните по дороге, куда должен переместиться Арден.')});
+ui.startWave.onclick=startWave;ui.pauseBtn.onclick=()=>{paused=!paused;ui.pauseBtn.textContent=paused?'Продолжить':'Пауза'};
+ui.upgradeBtn.onclick=upgradeSelected;ui.specialA.onclick=()=>chooseSpec('A');ui.specialB.onclick=()=>chooseSpec('B');
+
+ui.fireRain.onclick=()=>{
+ if(flame<60||gameEnded)return;flame-=60;
+ for(const e of enemies)if(e.alive)e.damageTaken(75,'magic');
+ effects.push({type:'text',x:W/2,y:90,text:'ОГНЕННЫЙ ДОЖДЬ',life:1.2});msg('Пламя Завета обрушилось на врагов!');updateUI()
+};
+ui.reinforce.onclick=()=>{
+ if(flame<35||gameEnded)return;flame-=35;const p=nearestPathPoint(hero.x+80,hero.y);for(let i=0;i<3;i++)allies.push(new Ally(p.x+i*14,p.y+18,this,'soldier'));
+ msg('Подкрепление прибыло!');updateUI()
+};
+
+let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.033);last=now;update(dt);draw();requestAnimationFrame(loop)}
+updatePreview();refreshTowerInfo();updateUI();requestAnimationFrame(loop);
 </script>
 </body>
 </html>
