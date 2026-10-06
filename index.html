@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Пламя Семи Башен — v0.3-alpha-art.2</title>
+<title>Пламя Семи Башен — v0.3.0-art-rebuild</title>
 <style>
 :root{--gold:#f3c86a;--glass:rgba(8,18,31,.79);--line:rgba(255,255,255,.1)}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111d;color:#fff;font-family:Inter,Segoe UI,Arial,sans-serif}
@@ -39,8 +39,8 @@
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
 const ui={gold:document.getElementById('gold'),lives:document.getElementById('lives'),wave:document.getElementById('wave'),enemyCount:document.getElementById('enemyCount'),hint:document.getElementById('hint'),wavePreview:document.getElementById('wavePreview'),towerButtons:document.getElementById('towerButtons'),towerInfo:document.getElementById('towerInfo'),tiTitle:document.getElementById('tiTitle'),tiDesc:document.getElementById('tiDesc'),tiLevel:document.getElementById('tiLevel'),tiDamage:document.getElementById('tiDamage'),tiRange:document.getElementById('tiRange'),tiRole:document.getElementById('tiRole'),upgradeBtn:document.getElementById('upgradeBtn'),flameText:document.getElementById('flameText'),flameBar:document.getElementById('flameBar'),fireRain:document.getElementById('fireRain'),reinforce:document.getElementById('reinforce'),moveHeroBtn:document.getElementById('moveHeroBtn'),pauseBtn:document.getElementById('pauseBtn'),startWave:document.getElementById('startWave')};
 let gold=420,lives=20,flame=0,wave=0,paused=false,waveActive=false,gameEnded=false,moveHeroMode=false,selectedTowerType='guard',selectedTower=null,towers=[],enemies=[],projectiles=[],allies=[],effects=[],queue=[],queueCd=0;
-const path=[{x:-30,y:770},{x:210,y:770},{x:330,y:675},{x:470,y:635},{x:545,y:520},{x:700,y:485},{x:825,y:420},{x:985,y:420},{x:1095,y:350},{x:1225,y:315},{x:1360,y:245},{x:1515,y:225},{x:1635,y:225}];
-const pads=[{x:210,y:650},{x:410,y:735},{x:500,y:455},{x:675,y:600},{x:785,y:350},{x:940,y:525},{x:1080,y:285},{x:1190,y:475},{x:1320,y:340},{x:1400,y:135}];
+const path=[{x:-30,y:790},{x:150,y:760},{x:285,y:680},{x:440,y:610},{x:575,y:555},{x:710,y:495},{x:820,y:410},{x:850,y:315}];
+const pads=[{x:205,y:665},{x:340,y:765},{x:455,y:520},{x:575,y:675},{x:690,y:430},{x:820,y:590},{x:980,y:455},{x:1090,y:650},{x:1195,y:390}];
 const towerDefs={guard:{name:'Стража',icon:'🛡️',cost:100,color:'#d7bb70',range:118,rate:1,damage:8,role:'Блокировка',desc:'Призывает солдат, которые удерживают врагов на дороге.'},ranger:{name:'Лесная башня',icon:'🏹',cost:115,color:'#58ce78',range:205,rate:.52,damage:16,role:'Дальний бой',desc:'Быстро обстреливает врагов с большого расстояния.'},forge:{name:'Руническая кузница',icon:'⚒️',cost:155,color:'#ff9d58',range:165,rate:1.45,damage:36,role:'Артиллерия',desc:'Медленный тяжёлый выстрел с уроном по области.'},crystal:{name:'Магический кристалл',icon:'🔷',cost:145,color:'#6ed4ff',range:178,rate:.78,damage:22,role:'Магия',desc:'Магический урон и замедление; особенно силён против теней.'}};
 
 const ART_PATHS={
@@ -51,7 +51,8 @@ const ART_PATHS={
   guard:'assets/towers/tower_guard_lvl1.webp',
   ranger:'assets/towers/tower_ranger_lvl1.webp',
   forge:'assets/towers/tower_forge_lvl1.webp',
-  crystal:'assets/towers/tower_crystal_lvl1.webp'
+  crystal:'assets/towers/tower_crystal_lvl1.webp',
+  atlas:'assets/art/v03_production_atlas.webp'
 };
 const ART={};
 let artLoaded=0;
@@ -100,6 +101,43 @@ function drawImageBottom(img,x,y,w){
   const h=w*ratio;
   ctx.drawImage(img,x-w/2,y-h,w,h);
 }
+const ATLAS_RECTS={
+  temple:[226,690,220,225],
+  pad:[438,700,184,200],
+  padGlow:[624,700,184,200],
+  guard:[810,690,182,220],
+  ranger:[995,690,184,220],
+  forge:[1178,690,181,220],
+  crystal:[1360,685,176,225]
+};
+const ATLAS_SPRITES={};
+function atlasSprite(key){
+  if(ATLAS_SPRITES[key]) return ATLAS_SPRITES[key];
+  if(!artReady('atlas')||!ATLAS_RECTS[key]) return null;
+  const [sx,sy,sw,sh]=ATLAS_RECTS[key];
+  const c=document.createElement('canvas'); c.width=sw; c.height=sh;
+  const g=c.getContext('2d',{willReadFrequently:true});
+  g.drawImage(ART.atlas,sx,sy,sw,sh,0,0,sw,sh);
+  const d=g.getImageData(0,0,sw,sh),p=d.data;
+  // Bottom-row atlas uses a near-black matte. Flood-fill only the connected matte.
+  const seen=new Uint8Array(sw*sh),qx=new Int32Array(sw*sh),qy=new Int32Array(sw*sh);let qs=0,qe=0;
+  function dark(x,y){const i=(y*sw+x)*4;return p[i]<48&&p[i+1]<48&&p[i+2]<48}
+  function push(x,y){const n=y*sw+x;if(seen[n]||!dark(x,y))return;seen[n]=1;qx[qe]=x;qy[qe]=y;qe++}
+  for(let x=0;x<sw;x++){push(x,0);push(x,sh-1)}
+  for(let y=0;y<sh;y++){push(0,y);push(sw-1,y)}
+  while(qs<qe){const x=qx[qs],y=qy[qs++],i=(y*sw+x)*4;p[i+3]=0;if(x)push(x-1,y);if(x<sw-1)push(x+1,y);if(y)push(x,y-1);if(y<sh-1)push(x,y+1)}
+  // Soften remaining dark fringe.
+  for(let i=0;i<p.length;i+=4){
+    const m=Math.max(p[i],p[i+1],p[i+2]);
+    if(m<34)p[i+3]=Math.min(p[i+3],Math.max(0,(m-8)*10));
+  }
+  g.putImageData(d,0,0); ATLAS_SPRITES[key]=c; return c;
+}
+function drawAtlasSprite(key,x,bottom,w){
+  const img=atlasSprite(key); if(!img)return false;
+  const h=w*(img.height/img.width);
+  ctx.drawImage(img,x-w/2,bottom-h,w,h); return true;
+}
 const enemyDefs={orc:{name:'Орк-мародёр',hp:95,speed:50,reward:14,armor:0,color:'#6c9848',r:16},scout:{name:'Разведчик',hp:58,speed:85,reward:12,armor:0,color:'#b8d766',r:13},ash:{name:'Тварь пепла',hp:82,speed:94,reward:16,armor:0,color:'#e25443',r:14},knight:{name:'Падший рыцарь',hp:235,speed:34,reward:28,armor:.45,color:'#596074',r:18},shadow:{name:'Тень',hp:132,speed:62,reward:24,armor:.65,magicWeak:true,color:'#7d68bb',r:15},boss:{name:'Вестник Пепла',hp:1550,speed:28,reward:220,armor:.25,color:'#91382c',r:31,boss:true}};
 const waves=[['orc','orc','scout','orc','orc'],['orc','scout','scout','ash','orc','orc'],['orc','orc','ash','scout','scout','orc','orc'],['knight','orc','ash','orc','scout','knight'],['shadow','orc','ash','scout','shadow','orc','knight'],['knight','shadow','ash','ash','scout','shadow','orc'],['knight','shadow','ash','shadow','orc','orc','knight'],['orc','ash','shadow','knight','scout','ash','shadow','boss']];
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -122,25 +160,15 @@ function drawEnemySprite(e){
  ctx.restore();
 }
 function drawTowerSprite(t){
-  const sizes={guard:104,ranger:105,forge:110,crystal:105};
+  const sizes={guard:92,ranger:96,forge:98,crystal:94};
   ctx.save();
-  if(selectedTower===t){ctx.shadowBlur=16;ctx.shadowColor='rgba(255,220,120,.75)'}
-  if(t.type!=='crystal'){
-    if(!drawCleanBottom(t.type,t.x,t.y+34,sizes[t.type]+(t.level-1)*4,58)){
-      ctx.fillStyle=t.color;ctx.beginPath();ctx.arc(t.x,t.y,22,0,Math.PI*2);ctx.fill();
-    }
-  }else{
-    // B04 is stored inside the approved production sheet. Crop the crystal tower
-    // from the lower-right asset panel rather than drawing the whole sheet.
-    if(artReady('crystal')){
-      const iw=ART.crystal.naturalWidth, ih=ART.crystal.naturalHeight;
-      const sx=Math.round(iw*.842), sy=Math.round(ih*.665), sw=Math.round(iw*.153), sh=Math.round(ih*.325);
-      const w=sizes.crystal+(t.level-1)*4,h=w*(sh/sw);
-      ctx.drawImage(ART.crystal,sx,sy,sw,sh,t.x-w/2,t.y+35-h,w,h);
-    }
+  if(selectedTower===t){ctx.shadowBlur=18;ctx.shadowColor='rgba(255,215,110,.78)'}
+  if(!drawAtlasSprite(t.type,t.x,t.y+39,sizes[t.type]+(t.level-1)*4)){
+    ctx.fillStyle=t.color;ctx.beginPath();ctx.arc(t.x,t.y,22,0,Math.PI*2);ctx.fill();
   }
   ctx.restore();
-  ctx.fillStyle='#fff3bf';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText('ур. '+t.level,t.x,t.y+43);
+  ctx.fillStyle='rgba(255,244,205,.95)';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('ур. '+t.level,t.x,t.y+45);
 }
 function drawAllySprite(a){
  const x=a.x,y=a.y,hero=a.type==='hero';drawShadow(x,y+13,hero?14:9,5,.18);ctx.save();ctx.translate(x,y);
@@ -164,38 +192,56 @@ function endGame(win){if(gameEnded)return;gameEnded=true;say(win?'Победа! 
 function update(dt){if(paused||gameEnded)return;if(waveActive&&queue.length){queueCd-=dt;if(queueCd<=0){enemies.push(new Enemy(queue.shift()));queueCd=.78}}enemies.forEach(e=>e.update(dt));towers.forEach(t=>t.update(dt));projectiles.forEach(p=>p.update(dt));allies.forEach(a=>a.update(dt));effects.forEach(f=>f.life-=dt);enemies=enemies.filter(e=>e.alive);projectiles=projectiles.filter(p=>p.alive);allies=allies.filter(a=>a.alive);effects=effects.filter(f=>f.life>0);if(waveActive&&!queue.length&&!enemies.length){waveActive=false;gold+=60+wave*8;flame=Math.min(100,flame+10);if(wave>=waves.length)endGame(true);else{say('Волна отбита. Подготовьте оборону.');updatePreview()}}updateUI()}
 function cloud(x,y,s){ctx.beginPath();ctx.arc(x,y,s*.34,0,Math.PI*2);ctx.arc(x+s*.32,y+3,s*.28,0,Math.PI*2);ctx.arc(x-s*.3,y+7,s*.24,0,Math.PI*2);ctx.fill()}
 function drawBG(){
-  // B04 source is the approved production sheet; its upper panel is a coherent
-  // forest battlefield and is used as the art background in this integration test.
-  if(artReady('crystal')){
-    const iw=ART.crystal.naturalWidth, ih=ART.crystal.naturalHeight;
-    const topH=Math.round(ih*.655);
-    ctx.drawImage(ART.crystal,0,0,iw,topH,0,0,W,H);
-    ctx.fillStyle='rgba(7,18,22,.10)';ctx.fillRect(0,0,W,H);
+  if(artReady('atlas')){
+    // Crop the coherent battlefield panel to 16:9 without stretching.
+    const img=ART.atlas, sx=155, sy=0, sw=1195, sh=672;
+    ctx.drawImage(img,sx,sy,sw,sh,0,0,W,H);
+
+    // Remove the four showcase towers that are baked into the concept panel by
+    // cloning adjacent terrain. These are intentionally soft patches so the
+    // dynamic game towers can occupy the field.
+    const patches=[
+      [170,70,220,240, 0,75,220,240],       // guard
+      [930,80,245,245, 950,310,245,245],    // forge
+      [205,315,250,270, 15,330,250,270],    // ranger
+      [1010,300,260,285, 860,330,260,285]   // crystal
+    ];
+    patches.forEach(a=>{
+      const [dx,dy,dw,dh,ssx,ssy,ssw,ssh]=a;
+      const X=(dx-sx)/sw*W,Y=(dy-sy)/sh*H,WW=dw/sw*W,HH=dh/sh*H;
+      ctx.save();ctx.globalAlpha=.98;
+      ctx.drawImage(img,ssx,ssy,ssw,ssh,X,Y,WW,HH);
+      ctx.restore();
+    });
+    // Slight tonal veil keeps units readable while preserving the painted world.
+    const vg=ctx.createLinearGradient(0,0,0,H);
+    vg.addColorStop(0,'rgba(5,12,18,.03)');vg.addColorStop(1,'rgba(5,15,12,.10)');
+    ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   }else{
     const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#9be0fb');g.addColorStop(1,'#4f835f');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   }
-  // Gameplay route is now understated rather than a giant yellow debug line.
-  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(255,239,190,.18)';ctx.lineWidth=3;
-  ctx.setLineDash([7,12]);ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.stroke();ctx.restore();
-  // Goal temple: clean the accidental matte before drawing.
-  if(artReady('temple')){
-    ctx.save();ctx.shadowBlur=18;ctx.shadowColor='rgba(80,190,255,.30)';
-    drawCleanBottom('temple',1460,300,230,60);ctx.restore();
-  }
+
+  // Objective glow around the temple already painted into the scene.
+  ctx.save();ctx.strokeStyle='rgba(90,210,255,.28)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(850,285,58+Math.sin(performance.now()/350)*4,0,Math.PI*2);ctx.stroke();ctx.restore();
+
+  // Route guide is almost invisible; the painted road does the visual work.
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(255,244,199,.16)';ctx.lineWidth=2;ctx.setLineDash([5,13]);
+  ctx.beginPath();ctx.moveTo(path[0].x,path[0].y);for(let i=1;i<path.length;i++)ctx.lineTo(path[i].x,path[i].y);ctx.stroke();ctx.restore();
 }
 function drawPads(){
   pads.forEach(p=>{
     const occupied=towers.some(t=>t.pad===p);
-    if(!occupied){
-      ctx.save();
-      const ok=drawCleanBottom('pad',p.x,p.y+27,72,58);
-      if(!ok){ctx.beginPath();ctx.arc(p.x,p.y,28,0,Math.PI*2);ctx.fillStyle='rgba(240,215,145,.25)';ctx.fill()}
-      ctx.restore();
-      if(artReady('padGlow')){
-        ctx.save();ctx.globalAlpha=.55+Math.sin(performance.now()/320)*.13;ctx.shadowBlur=12;ctx.shadowColor='rgba(86,204,255,.45)';
-        drawCleanBottom('padGlow',p.x,p.y+29,76,58);ctx.restore();
-      }
+    if(occupied)return;
+    ctx.save();
+    if(!drawAtlasSprite('pad',p.x,p.y+22,66)){
+      ctx.fillStyle='rgba(222,207,160,.30)';ctx.beginPath();ctx.ellipse(p.x,p.y,29,18,0,0,Math.PI*2);ctx.fill();
     }
+    if(artReady('atlas')){
+      ctx.globalAlpha=.42+Math.sin(performance.now()/320)*.12;
+      ctx.shadowBlur=13;ctx.shadowColor='rgba(74,202,255,.6)';
+      drawAtlasSprite('padGlow',p.x,p.y+23,69);
+    }
+    ctx.restore();
   });
 }
 function drawEffects(){effects.forEach(f=>{ctx.save();ctx.globalAlpha=Math.min(1,f.life*5);if(f.type==='burst'){ctx.strokeStyle='#ffd76a';ctx.lineWidth=5;ctx.beginPath();ctx.arc(f.x,f.y,42*(1-f.life),0,Math.PI*2);ctx.stroke()}if(f.type==='hit'){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(f.x,f.y,8,0,Math.PI*2);ctx.fill()}if(f.type==='spark'){ctx.strokeStyle='#8be3ff';ctx.lineWidth=3;for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(f.x,f.y);ctx.lineTo(f.x+Math.cos(i*1.57)*18,f.y+Math.sin(i*1.57)*18);ctx.stroke()}}if(f.type==='blast'){ctx.fillStyle='rgba(255,144,67,.5)';ctx.beginPath();ctx.arc(f.x,f.y,28,0,Math.PI*2);ctx.fill()}if(f.type==='slash'){ctx.strokeStyle='#fff3c5';ctx.lineWidth=3;ctx.beginPath();ctx.arc(f.x,f.y,16,-.9,.9);ctx.stroke()}if(f.type==='text'){ctx.fillStyle='#ffd86d';ctx.font='bold 22px Georgia';ctx.textAlign='center';ctx.fillText(f.text,f.x,f.y)}ctx.restore()})}
